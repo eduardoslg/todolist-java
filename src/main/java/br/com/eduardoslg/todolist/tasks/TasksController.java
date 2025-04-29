@@ -9,12 +9,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.eduardoslg.todolist.utils.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+
 
 
 @RestController
@@ -51,10 +56,33 @@ private ITasksRepository taskRepository;
         return ResponseEntity.status(HttpStatus.CREATED).body(output);
     }
 
-    @GetMapping("/list/table")
-    public List<TasksModel> list() {
-        List<TasksModel> output = this.taskRepository.findAll();
-        return output;
-    }
+    @PutMapping("/{id}")
+    public ResponseEntity update(@RequestBody TasksModel task, HttpServletRequest request, @PathVariable UUID id) {
+        var userId = request.getAttribute("userId");
 
+        var tasksExists = this.taskRepository.findById(id).orElse(null);
+
+        if (tasksExists == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Nenhuma task encontrada");
+        }
+
+        if (!task.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Você não tem permissão para alterar essa tarefa");
+        }
+
+        Utils.copyNonNullProperties(task, tasksExists);
+
+        TasksModel output = this.taskRepository.save(tasksExists);
+        return ResponseEntity.ok().body(output);
+    }
+    
+    @GetMapping("/list/table")
+    public ResponseEntity list(HttpServletRequest request) {
+        var userId = request.getAttribute("userId");
+
+        List<TasksModel> output =this.taskRepository.findByUserId((UUID) userId);
+
+        return ResponseEntity.status(HttpStatus.OK).body(output);
+
+    }
 }
